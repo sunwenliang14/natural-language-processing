@@ -4,64 +4,115 @@ import os
 import re
 import pandas as pd
 
-import seaborn as sns
-import matplotlib.pyplot as plt
-import pprint
 
-
-def get_blog_articles():
-    articles = []
-    urls = ['https://codeup.com/codeups-data-science-career-accelerator-is-here/',
-        'https://codeup.com/data-science-myths/', 
+urls = ['https://codeup.com/codeups-data-science-career-accelerator-is-here/',
+        'https://codeup.com/data-science-myths/',
         'https://codeup.com/data-science-vs-data-analytics-whats-the-difference/',
         'https://codeup.com/10-tips-to-crush-it-at-the-sa-tech-job-fair/',
-        'https://codeup.com/competitor-bootcamps-are-closing-is-the-model-in-danger/'
-       ]
-    for i in urls:
-        headers = {'User-Agent': 'Codeup Curie Data Science'} 
-        response = get(i, headers=headers)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        title = soup.title.text
-        text = soup.find('div', class_='jupiterx-post-content clearfix').text
-        date = soup.select("header > ul > li.jupiterx-post-meta-date.list-inline-item > time")[0]["datetime"]
-        articles.append({"title": title, "content": text, "date_published": date})
-    return articles
+        'https://codeup.com/competitor-bootcamps-are-closing-is-the-model-in-danger/']
 
+def get_blog_articles(urls=urls, cache=False):
+    '''
+    This function takes in a list of Codeup Blog urls and a parameter
+    with default cache == False which returns a df from a csv file.
+    If cache == True, the function scrapes the title and text for each url, 
+    creates a list of dictionaries with the title and text for each blog, 
+    converts list to df, and returns df.
+    '''
+    if cache == False:
+        df = pd.read_csv('big_blogs.csv', index_col=0)
+    else:
+        headers = {'User-Agent': 'Codeup Bayes Data Science'} 
 
-def get_url(topic):
-    url = f"https://inshorts.com/en/read/{topic}"
-    headers = {'User-Agent': 'Codeup Curie Data Science'} 
-    response = get(url, headers=headers)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    urls = []
-    # Find all links within that topic
-    for link in soup.find_all("a", href=True):
-        urls.append(link["href"])
-        lines = pd.Series(urls)
-        urls = lines[lines.str.contains(r"^/en/news")].tolist()
-        new_urls = []
-        for i in urls:
-            new_urls.append("https://inshorts.com" + i)
-    return new_urls
+        # Create an empty list to hold dictionaries
+        articles = []
 
-def get_article_info(new_urls, topic):
-    news = []
-    for new_url in new_urls:
-        headers = {'User-Agent': 'Codeup Curie Data Science'} 
-        response = get(new_url, headers=headers)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        title = soup.select("body > div.container > div > div.card-stack > div > div > div.news-card-title.news-right-box > a > span")[0].text
-        body = soup.select("body > div.container > div > div.card-stack > div > div > div.news-card-content.news-right-box > div:nth-child(1)")[0].text
-        author = soup.find("span", class_ = "author").text
-        date_published = soup.find("span", class_="time")["content"]
-        news.append({"title": title, "author": author, "topic": topic, "article": body, "date_published": date_published, "page_url": new_url})
-    return news
+        # Loop through each url in our list of urls
+        for url in urls:
+
+            # get request to each url saved in response
+            response = get(url, headers=headers)
+
+            # Create soup object from response text and parse
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Save the title of each blog in variable title
+            title = soup.find('h1', itemprop='headline').text
+
+            # Save the text in each blog to variable text
+            text = soup.find('div', itemprop='text').text
+
+            # Create a dictionary holding the title and text for each blog
+            article = {'title': title, 'content': text}
+
+            # Add each dictionary to the articles list of dictionaries
+            articles.append(article)
+            
+        # convert our list of dictionaries to a df
+        df = pd.DataFrame(articles)
+
+        # Write df to csv file for faster access
+        df.to_csv('big_blogs.csv')
     
-def get_news_articles(topics = []):
-    all_news = []
-    for topic in topics:
-        new_urls = get_url(topic)
-        news = get_article_info(new_urls, topic)
-        all_news.append(news)
-    all_news = sum(all_news, [])
-    return all_news
+    return df
+
+
+
+def get_news_articles(cache=False):
+    '''
+    This function uses a cache parameter with default cache == False to give the option of 
+    returning in a df of inshorts topics and info by reading a csv file or
+    of doing a fresh scrape of inshort pages with topics business, sports, technology,
+    and entertainment and writing the returned df to a csv file.
+    '''
+    # default to read in a csv instead of scrape for df
+    if cache == False:
+        df = pd.read_csv('articles.csv', index_col=0)
+        
+    # cache == True completes a fresh scrape for df    
+    else:
+    
+        # Set base_url and headers that will be used in get request
+
+        base_url = 'https://inshorts.com/en/read/'
+        headers = {'User-Agent': 'Codeup Data Science'}
+        
+        # List of topics to scrape
+        topics = ['business', 'sports', 'technology', 'entertainment']
+
+        # Create an empty list, articles, to hold our dictionaries
+        articles = []
+
+        for topic in topics:
+
+            # Get a response object from the main inshorts page
+            response = get(base_url + topic, headers=headers)
+
+            # Create soup object using response from inshort
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # Scrape a ResultSet of all the news cards on the page
+            cards = soup.find_all('div', class_='news-card')
+
+            # Loop through each news card on the page and get what we want
+            for card in cards:
+                title = card.find('span', itemprop='headline' ).text
+                author = card.find('span', class_='author').text
+                content = card.find('div', itemprop='articleBody').text
+
+                # Create a dictionary, article, for each news card
+                article = ({'topic': topic, 
+                            'title': title, 
+                            'author': author, 
+                            'content': content})
+
+                # Add the dictionary, article, to our list of dictionaries, articles.
+                articles.append(article)
+            
+        # Why not return it as a DataFrame?!
+        df = pd.DataFrame(articles)
+        
+        # Write df to csv for future use
+        df.to_csv('articles.csv')
+    
+    return df

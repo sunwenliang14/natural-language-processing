@@ -5,13 +5,15 @@ import re
 import pandas as pd
 
 
+
 urls = ['https://codeup.com/codeups-data-science-career-accelerator-is-here/',
         'https://codeup.com/data-science-myths/',
         'https://codeup.com/data-science-vs-data-analytics-whats-the-difference/',
         'https://codeup.com/10-tips-to-crush-it-at-the-sa-tech-job-fair/',
         'https://codeup.com/competitor-bootcamps-are-closing-is-the-model-in-danger/']
 
-def get_blog_articles(urls=urls, cache=False):
+
+def get_blog_articles(cache=False):
     '''
     This function takes in a list of Codeup Blog urls and a parameter
     with default cache == False which returns a df from a csv file.
@@ -55,6 +57,38 @@ def get_blog_articles(urls=urls, cache=False):
         df.to_csv('big_blogs.csv')
     
     return df
+
+
+
+def get_all_urls():
+    '''
+    This function scrapes all of the Codeup blog urls from
+    the main Codeup blog page and returns a list of urls.
+    '''
+    # The main Codeup blog page with all the urls
+    url = 'https://codeup.com/resources/#blog'
+    
+    headers = {'User-Agent': 'Codeup Data Science'} 
+    
+    # Send request to main page and get response
+    response = get(url, headers=headers)
+    
+    # Create soup object using response
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    # Create empty list to hold the urls for all blogs
+    urls = []
+    
+    # Create a list of the element tags that hold the href/links
+    link_list = soup.find_all('a', class_='jet-listing-dynamic-link__link')
+    
+    # get the href/link from each element tag in my list
+    for link in link_list:
+        
+        # Add the link to my urls list
+        urls.append(link['href'])
+        
+    return urls
 
 
 

@@ -57,15 +57,15 @@ def remove_stopwords(string, extra_words=[], exclude_words=[]):
 
 
 def prep_articles(df):
-    #df['title'] = df.title
-    df["original"] = df.body
-    df["stemmed"] = df.body.apply(basic_clean).apply(stem)
-    df["lemmatized"] = df.body.apply(basic_clean).apply(lemmatize)
-    df["clean"] = df.body.apply(basic_clean).apply(remove_stopwords)
-    df.drop(columns=["body"], inplace=True)
+    df['title'] = df.title
+    df["original_content"] = df.content
+    df["stemmed"] = df.content.apply(basic_clean).apply(stem)
+    df["lemmatized"] = df.content.apply(basic_clean).apply(lemmatize)
+    df["clean_lemmatized"] = df.lemmatized.apply(remove_stopwords)
+    df.drop(columns=["content"], inplace=True)
     return df
 
 
 def prep_blog_articles():
-    df = acquire.get_blog_articles()
+    df = acquire.get_blog_articles(cache=False)
     return prep_articles(df)
